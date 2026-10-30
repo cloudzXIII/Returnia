@@ -1,6 +1,6 @@
 {
   "id": "returnia",
-  "name": "RETURNIA",
+  "name": "Returnia",
   "author": [
     "Bunnet",
     "cloudzXIII",
@@ -13,7 +13,7 @@
   "prefix": "returnia",
   "main_file": "returnia.lua",
   "priority": -1,
-  "display_name": "RETURNIA",
+  "display_name": "Returnia",
   "badge_text_colour": "ffffff",
   "badge_colour": "5d5e8d",
   "version": "0.0.1",
