@@ -1,0 +1,26 @@
+{
+  "id": "returnia",
+  "name": "RETURNIA",
+  "author": [
+    "Bunnet",
+    "cloudzXIII",
+    "EricTheToon",
+    "Noodlemire",
+    "0kronix",
+    "Iris"
+  ],
+  "description": "An addon for Abandonia!",
+  "prefix": "returnia",
+  "main_file": "returnia.lua",
+  "priority": -1,
+  "display_name": "RETURNIA",
+  "badge_text_colour": "ffffff",
+  "badge_colour": "5d5e8d",
+  "version": "0.0.1",
+  "dependencies": [
+    "Steamodded (>=26.829.0)",
+    "abandonia"
+  ],
+  "icon_path": "mod_icon.png",
+  "icon_width": 32
+}
