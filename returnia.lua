@@ -175,6 +175,7 @@ SMODS.Consumable {
   cost = 4,
   atlas = "ReturniaSpectrals",
   pos = { x = 2, y = 0 },
+  
   loc_txt = {
     name = "Astrolabe",
     text = {
@@ -183,12 +184,19 @@ SMODS.Consumable {
       "poker hand",
     }
   },
+  
+  abn_artist_credits = {
+	artist = "Boko"
+  },
+  
   loc_vars = function(self, info_queue, card)
     return { vars = { card.ability.extra.levels } }
   end,
+  
   can_use = function(self, card)
     return true
   end,
+  
   use = function(self, card, area, copier)
     local highest_level = -math.huge
     local highest_hands = {}
@@ -247,7 +255,6 @@ SMODS.Joker {
   loc_vars = function(self, info_queue, card)
     return { vars = { card.ability.extra.levels } }
   end,
-  
 
   calculate = function(self, card, context)
     if context.before and not context.blueprint
@@ -289,6 +296,119 @@ SMODS.Joker {
         message = localize("k_level_up_ex"),
         colour = G.C.ATTENTION,
       }
+    end
+  end,
+}
+
+SMODS.Joker {
+  key = "jester_of_seriousness",
+  atlas = "ReturniaJokerSheet1",
+  pos = { x = 0, y = 2 },
+  rarity = 1,
+  cost = 6,
+  blueprint_compat = true,
+  eternal_compat = true,
+  perishable_compat = true,
+  config = { extra = { chips = 6, mult = 2 } },
+  
+  loc_txt = {
+    name = "Jester of Seriousness",
+    text = {
+      "Gives {C:chips}+#1#{} Chips and {C:mult}+#2#{} Mult",
+	  "per {C:planet}Planet{} {C:attention}Rank{} of each played card"
+    }
+  },
+  
+  loc_vars = function(self, info_queue, card)
+    return { vars = { card.ability.extra.chips, card.ability.extra.mult } }
+  end,
+  
+  abn_artist_credits = {
+    artist = "Wikypedia"
+  },
+  
+  calculate = function(self, card, context)
+    if context.individual and context.cardarea == G.play
+      and G.GAME.abn_rank_upgrades
+      and not SMODS.has_no_rank(context.other_card) then
+      local rank_data = G.GAME.abn_rank_upgrades[context.other_card.base.value]
+      if rank_data then
+        return {
+          chips = card.ability.extra.chips * rank_data.level,
+          mult = card.ability.extra.mult * rank_data.level,
+        }
+      end
+    end
+  end,
+}
+
+SMODS.Joker {
+  key = "jester_of_sadness",
+  atlas = "ReturniaJokerSheet1",
+  pos = { x = 1, y = 2 },
+  rarity = 1,
+  cost = 6,
+  blueprint_compat = true,
+  eternal_compat = true,
+  perishable_compat = true,
+  config = { extra = { mult = 10, chips = 30 } },
+  
+  loc_txt = {
+    name = "Jester of Sadness",
+    text = {
+	  {
+		"{C:mult}+#1#{} Mult if all {C:attention}scoring{} cards are {C:attention}Even{}",
+		"and all {C:attention}unscored{} cards are {C:attention}Odd{}",
+	  },
+	  {
+		"{C:chips}+#2#{} Chips if all {C:attention}scoring{} cards are {C:attention}Odd{}",
+		"and all {C:attention}unscored{} cards are {C:attention}Even{}",
+	  },
+    }
+  },
+  
+  loc_vars = function(self, info_queue, card)
+    return { vars = { card.ability.extra.mult, card.ability.extra.chips } }
+  end,
+  
+  abn_artist_credits = {
+    artist = "Wikypedia"
+  },
+  
+  calculate = function(self, card, context)
+    if context.joker_main then
+      local scoring_all_even = true
+      local scoring_all_odd = true
+      local unscored_count = 0
+      local unscored_all_even = true
+      local unscored_all_odd = true
+
+      for _, played_card in ipairs(context.full_hand) do
+        local is_scoring = false
+        for _, scoring_card in ipairs(context.scoring_hand) do
+          if scoring_card == played_card then
+            is_scoring = true
+            break
+          end
+        end
+
+        if is_scoring then
+          if not ABN.is_even(played_card) then scoring_all_even = false end
+          if not ABN.is_odd(played_card) then scoring_all_odd = false end
+        else
+          unscored_count = unscored_count + 1
+          if not ABN.is_even(played_card) then unscored_all_even = false end
+          if not ABN.is_odd(played_card) then unscored_all_odd = false end
+        end
+      end
+
+      if unscored_count == 0 then return end
+
+      if scoring_all_even and unscored_all_odd then
+        return { mult = card.ability.extra.mult }
+      elseif scoring_all_odd and unscored_all_even then
+        return { chips = card.ability.extra.chips }
+      end
     end
   end,
 }
