@@ -375,6 +375,124 @@ SMODS.Consumable {
   },
 }
 
+-- Tarots
+
+SMODS.Atlas({
+  key = "ReturniaTarots",
+  path = "consumables/tarots.png",
+  px = 71,
+  py = 95,
+})
+
+
+SMODS.Consumable {
+  key = "polarity",
+  set = "Tarot",
+  atlas = "ReturniaTarots",
+  pos = { x = 0, y = 0 },
+  cost = 4,
+
+  abn_artist_credits = {
+    artist = "Da Gorbage Rat"
+  },
+
+  loc_txt = {
+    name = "Polarity",
+    text = {
+      "Select an {C:attention}original{} Joker and {C:attention}transform{} it",
+	  "Next {C:attention}Boss Blind{} create an {C:attention}Inverse{} {C:crepuscular}Crepuscular Tarot{} card",
+	  "{C:inactive}(Must have room)",
+	 
+    }
+  },
+  
+  loc_vars = function(self, info_queue, card)
+	info_queue[#info_queue + 1] = G.P_CENTERS.c_returnia_inverse
+  end,
+
+  can_use = function(self, card)
+    if #G.jokers.highlighted ~= 1 then return false end
+    local selected_joker = G.jokers.highlighted[1]
+    local sides = selected_joker.config.center.polarity_sides
+    return sides ~= nil and selected_joker.ability.extra.side == sides[1]
+  end,
+
+  use = function(self, card, area, copier)
+    local selected_joker = G.jokers.highlighted[1]
+    G.E_MANAGER:add_event(Event({
+      trigger = "after",
+      delay = 0.4,
+      func = function()
+        play_sound("tarot1")
+        card:juice_up(0.3, 0.5)
+        selected_joker.config.center:set_side(selected_joker, selected_joker.config.center.polarity_sides[2])
+        selected_joker:juice_up(0.8, 0.5)
+        G.jokers:unhighlight_all()
+        return true
+      end
+    }))
+	
+	local _card = create_card('Tarot', G.consumeables, nil, nil, nil, nil, 'c_returnia_polarity')
+    _card:add_to_deck()
+    G.vouchers:emplace(_card)
+  end,
+  
+  calculate = function(self, card, context)
+	if card.area ~= G.vouchers then return end
+	
+	if context.setting_blind and G.GAME.blind.boss and #G.consumeables.cards < G.consumeables.config.card_limit then
+		local _card = create_card('Tarot', G.consumeables, nil, nil, nil, nil, 'c_returnia_inverse')
+		_card:add_to_deck()
+		G.consumeables:emplace(_card)
+		card:start_dissolve()
+	end
+	
+  end,
+}
+
+SMODS.Consumable {
+  key = "inverse",
+  set = "crepuscular",
+  atlas = "ReturniaTarots",
+  pos = { x = 0, y = 0 },
+  cost = 4,
+
+  abn_artist_credits = {
+    artist = "Da Gorbage Rat"
+  },
+
+  loc_txt = {
+    name = "Inverse",
+    text = {
+      "Select a {C:attention}transformed{} Joker",
+      "and turn it back into its {C:attention}original{}",
+    }
+  },
+
+  can_use = function(self, card)
+    if #G.jokers.highlighted ~= 1 then return false end
+    local selected_joker = G.jokers.highlighted[1]
+    local sides = selected_joker.config.center.polarity_sides
+    return sides ~= nil and selected_joker.ability.extra.side == sides[2]
+  end,
+
+  use = function(self, card, area, copier)
+    local selected_joker = G.jokers.highlighted[1]
+    G.E_MANAGER:add_event(Event({
+      trigger = "after",
+      delay = 0.4,
+      func = function()
+        play_sound("tarot1")
+        card:juice_up(0.3, 0.5)
+        selected_joker.config.center:set_side(selected_joker, selected_joker.config.center.polarity_sides[1])
+        selected_joker:juice_up(0.8, 0.5)
+        G.jokers:unhighlight_all()
+        return true
+      end
+    }))
+  end,
+}
+
 -- Jokers
 
 SMODS.Atlas({
@@ -462,34 +580,85 @@ SMODS.Joker {
 }
 
 SMODS.Joker {
-  key = "jester_of_seriousness",
+  key = "seriousness_joker",
   atlas = "ReturniaJokerSheet1",
   pos = { x = 0, y = 2 },
   rarity = 1,
-  cost = 6,
+  cost = 4,
   blueprint_compat = true,
   eternal_compat = true,
   perishable_compat = true,
-  config = { extra = { chips = 6, mult = 2 } },
-  
-  loc_txt = {
-    name = "Jester of Seriousness",
-    text = {
-      "Gives {C:chips}+#1#{} Chips and {C:mult}+#2#{} Mult",
-	  "per {C:planet}Planet{} {C:attention}Rank{} of each played card"
+  config = {
+    extra = {
+      side = "seriousness",
+      seriousness_mult = 6,
+      level_threshold = 1,
+      chips = 6,
+      mult = 2,
+      seriousness_cost = 4,
+      jester_cost = 6,
     }
   },
-  
-  loc_vars = function(self, info_queue, card)
-    return { vars = { card.ability.extra.chips, card.ability.extra.mult } }
-  end,
-  
+
+  polarity_sides = { "seriousness", "jester" },
+
   abn_artist_credits = {
     artist = "Wikypedia"
   },
-  
+
+  loc_txt = {
+    name = "Seriousness Joker",
+    text = {
+      "Gives {C:mult}+#1#{} Mult if {C:attention}scoring{} cards have",
+      "more than {C:attention}#2#{} level of {C:planet}Planet{} {C:attention}Ranks{}",
+      "Use {C:tarot}Polarity{} to transform into {C:attention}Jester of Seriousness{}",
+    }
+  },
+
+  loc_txt_jester = {
+    name = "Jester of Seriousness",
+    text = {
+      "Gives {C:chips}+#1#{} Chips and {C:mult}+#2#{} Mult",
+      "per {C:planet}Planet{} {C:attention}Rank{} of each played card",
+      "Use {C:crepuscular}Inverse{} to transform into {C:attention}Seriousness Joker{}",
+    }
+  },
+
+  process_loc_text = function(self)
+    SMODS.Joker.process_loc_text(self)
+    SMODS.process_loc_text(G.localization.descriptions.Joker, self.key .. "_jester", self.loc_txt_jester)
+  end,
+
+  loc_vars = function(self, info_queue, card)
+    if card.ability.extra.side == "jester" then
+      return { vars = { card.ability.extra.chips, card.ability.extra.mult }, key = self.key .. "_jester" }
+    end
+    return { vars = { card.ability.extra.seriousness_mult, card.ability.extra.level_threshold } }
+  end,
+
+  set_side = function(self, card, side)
+    card.ability.extra.side = side
+    card.base_cost = side == "jester" and card.ability.extra.jester_cost or card.ability.extra.seriousness_cost
+    card:set_cost()
+  end,
+
   calculate = function(self, card, context)
-    if context.individual and context.cardarea == G.play
+    if context.joker_main and card.ability.extra.side == "seriousness" and G.GAME.abn_rank_upgrades then
+      local total_levels = 0
+      for _, scoring_card in ipairs(context.scoring_hand) do
+        if not SMODS.has_no_rank(scoring_card) then
+          local rank_data = G.GAME.abn_rank_upgrades[scoring_card.base.value]
+          if rank_data then
+            total_levels = total_levels + rank_data.level
+          end
+        end
+      end
+      if total_levels > card.ability.extra.level_threshold then
+        return { mult = card.ability.extra.seriousness_mult }
+      end
+    end
+
+    if context.individual and context.cardarea == G.play and card.ability.extra.side == "jester"
       and G.GAME.abn_rank_upgrades
       and not SMODS.has_no_rank(context.other_card) then
       local rank_data = G.GAME.abn_rank_upgrades[context.other_card.base.value]
@@ -504,40 +673,82 @@ SMODS.Joker {
 }
 
 SMODS.Joker {
-  key = "jester_of_sadness",
+  key = "sadness_joker",
   atlas = "ReturniaJokerSheet1",
   pos = { x = 1, y = 2 },
   rarity = 1,
-  cost = 6,
+  cost = 4,
   blueprint_compat = true,
   eternal_compat = true,
   perishable_compat = true,
-  config = { extra = { mult = 10, chips = 30 } },
-  
-  loc_txt = {
-    name = "Jester of Sadness",
-    text = {
-	  {
-		"{C:mult}+#1#{} Mult if all {C:attention}scoring{} cards are {C:attention}Even{}",
-		"and all {C:attention}unscored{} cards are {C:attention}Odd{}",
-	  },
-	  {
-		"{C:chips}+#2#{} Chips if all {C:attention}scoring{} cards are {C:attention}Odd{}",
-		"and all {C:attention}unscored{} cards are {C:attention}Even{}",
-	  },
+  config = {
+    extra = {
+      side = "sadness",
+      sadness_mult = 6,
+      mult = 10,
+      chips = 30,
+      sadness_cost = 4,
+      jester_cost = 6,
     }
   },
-  
-  loc_vars = function(self, info_queue, card)
-    return { vars = { card.ability.extra.mult, card.ability.extra.chips } }
-  end,
-  
+
+  polarity_sides = { "sadness", "jester" },
+
   abn_artist_credits = {
     artist = "Wikypedia"
   },
-  
+
+  loc_txt = {
+    name = "Sadness Joker",
+    text = {
+		"{C:mult}+#1#{} Mult if the played hand has an {C:attention}unscored{} card",
+        "Use {C:tarot}Polarity{} to transform into {C:attention}Jester of Sadness{}",
+    }
+  },
+
+  loc_txt_jester = {
+    name = "Jester of Sadness",
+    text = {
+      {
+        "{C:mult}+#1#{} Mult if all {C:attention}scoring{} cards are {C:attention}Even{}",
+        "and all {C:attention}unscored{} cards are {C:attention}Odd{}",
+      },
+      {
+        "{C:chips}+#2#{} Chips if all {C:attention}scoring{} cards are {C:attention}Odd{}",
+        "and all {C:attention}unscored{} cards are {C:attention}Even{}",
+      },
+      {
+        "Use {C:crepuscular}Inverse{} to transform into {C:attention}Sadness Joker{}",
+      },
+    }
+  },
+
+  process_loc_text = function(self)
+    SMODS.Joker.process_loc_text(self)
+    SMODS.process_loc_text(G.localization.descriptions.Joker, self.key .. "_jester", self.loc_txt_jester)
+  end,
+
+  loc_vars = function(self, info_queue, card)
+    if card.ability.extra.side == "jester" then
+      return { vars = { card.ability.extra.mult, card.ability.extra.chips }, key = self.key .. "_jester" }
+    end
+    return { vars = { card.ability.extra.sadness_mult } }
+  end,
+
+  set_side = function(self, card, side)
+    card.ability.extra.side = side
+    card.base_cost = side == "jester" and card.ability.extra.jester_cost or card.ability.extra.sadness_cost
+    card:set_cost()
+  end,
+
   calculate = function(self, card, context)
-    if context.joker_main then
+    if context.joker_main and card.ability.extra.side == "sadness" then
+      if #context.full_hand > #context.scoring_hand then
+        return { mult = card.ability.extra.sadness_mult }
+      end
+    end
+
+    if context.joker_main and card.ability.extra.side == "jester" then
       local scoring_all_even = true
       local scoring_all_odd = true
       local unscored_count = 0
@@ -569,6 +780,76 @@ SMODS.Joker {
         return { mult = card.ability.extra.mult }
       elseif scoring_all_odd and unscored_all_even then
         return { chips = card.ability.extra.chips }
+      end
+    end
+  end,
+}
+
+SMODS.Joker {
+  key = "beneficient_joker",
+  atlas = "ReturniaJokerSheet1",
+  pos = { x = 5, y = 2 },
+  rarity = 1,
+  cost = 4,
+  blueprint_compat = true,
+  eternal_compat = true,
+  perishable_compat = true,
+  config = {
+    extra = {
+      side = "beneficient",
+      dollars = 1,
+      mult = 0.5,
+      beneficient_cost = 4,
+      jester_cost = 6,
+    }
+  },
+
+  polarity_sides = { "beneficient", "jester" },
+
+  abn_artist_credits = {
+    artist = "Heart of Crow"
+  },
+
+  loc_txt = {
+    name = "Beneficient Joker",
+    text = {
+      "{C:attention}Played{} and {C:attention}Unscoring{} cards give {C:money}$#1#{}",
+      "Use {C:tarot}Polarity{} to transform into {C:attention}Jester of Benefits{}",
+    }
+  },
+
+  loc_txt_jester = {
+    name = "Jester of Benefits",
+    text = {
+      "{C:attention}Played{} and {C:attention}Unscoring{} cards give {C:mult}+#1#{} Mult",
+      "Use {C:crepuscular}Inverse{} to transform into {C:attention}Beneficient Joker{}",
+    }
+  },
+
+  process_loc_text = function(self)
+    SMODS.Joker.process_loc_text(self)
+    SMODS.process_loc_text(G.localization.descriptions.Joker, self.key .. "_jester", self.loc_txt_jester)
+  end,
+
+  loc_vars = function(self, info_queue, card)
+    if card.ability.extra.side == "jester" then
+      return { vars = { card.ability.extra.mult }, key = self.key .. "_jester" }
+    end
+    return { vars = { card.ability.extra.dollars } }
+  end,
+
+  set_side = function(self, card, side)
+    card.ability.extra.side = side
+    card.base_cost = side == "jester" and card.ability.extra.jester_cost or card.ability.extra.beneficient_cost
+    card:set_cost()
+  end,
+
+  calculate = function(self, card, context)
+    if context.individual and (context.cardarea == "unscored" or context.cardarea == G.play) then
+      if card.ability.extra.side == "beneficient" then
+        return { dollars = card.ability.extra.dollars }
+      else
+        return { mult = card.ability.extra.mult }
       end
     end
   end,
