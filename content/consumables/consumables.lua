@@ -209,6 +209,52 @@ SMODS.Consumable {
   },
 }
 
+--[[
+SMODS.Consumable {
+  key = 'antipattern',
+  set = 'Spectral',
+  atlas = "ReturniaSpectrals",
+  pos = { x = 1, y = 0 },
+  cost = 4,
+  discovered = false,
+  config = { extra = { max_highlighted = 1, blind_mult = 1.5, edition = "e_returnia_static" } },
+
+  loc_txt = {
+    name = "Antipattern",
+    text = {
+      "All {C:attention}odd{} cards held in hand",
+      "gain random {C:enhanced}Enhancements{} and {C:dark_edition}Editions{} from {C:attention}Abandonia{},",
+      "{C:attention}#1# even{} cards in the deck become {C:red}Pernicious{}",
+      "{C:inactive,s:0.8}(Relative to nb. of Jokers owned [#1#])",
+    }
+  },
+
+  loc_vars = function(self, info_queue, card)
+    local jokercount = 0
+    if G.jokers and G.jokers.cards >= 1 then jokercount = #G.jokers.cards end 
+    return { vars = { jokercount } }
+  end,
+
+  can_use = function(self, card)
+    if not G.jokers or #G.jokers.cards >= 1 then return false end
+    return true
+  end,
+
+  use = function(self, card, area, copier)
+      -- make loop go through G.playing_cards then, 
+      -- check even/odd with ABN.is_even/odd make even base on increment, 
+      -- check increment compared to g.jokersq.cazrds 
+      -- make sure to grab rdm enh and edition from abn, check for like where "mod" is at
+      -- then move loc to actual loc file because jokerforge type loc pmo
+      -- remember to change atlas pos too
+  
+  end,
+
+  abn_artist_credits = {
+    artist = "Boko" -- ask later
+  },
+}
+]]
 -- Tarots
 
 SMODS.Atlas({
@@ -326,3 +372,4 @@ SMODS.Consumable {
     }))
   end,
 }
+
