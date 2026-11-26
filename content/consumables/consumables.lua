@@ -209,52 +209,289 @@ SMODS.Consumable {
   },
 }
 
---[[
 SMODS.Consumable {
-  key = 'antipattern',
+  key = 'pattern',
   set = 'Spectral',
-  atlas = "ReturniaSpectrals",
-  pos = { x = 1, y = 0 },
+  atlas = 'ReturniaSpectrals',
+  pos = { x = 2, y = 1 },
   cost = 4,
-  discovered = false,
-  config = { extra = { max_highlighted = 1, blind_mult = 1.5, edition = "e_returnia_static" } },
-
+  config = {},
   loc_txt = {
-    name = "Antipattern",
+    name = 'Pattern',
     text = {
-      "All {C:attention}odd{} cards held in hand",
-      "gain random {C:enhanced}Enhancements{} and {C:dark_edition}Editions{} from {C:attention}Abandonia{},",
-      "{C:attention}#1# even{} cards in the deck become {C:red}Pernicious{}",
-      "{C:inactive,s:0.8}(Relative to nb. of Jokers owned [#1#])",
-    }
+	  {
+		"All {C:attention}Even{} cards held in {C:attention}hand{} gain",
+		"random {C:attention}Cut-Out Enhancements{} and {C:dark_edition}Editions",
+      },
+	  {
+		"For every owned Joker a random", 
+		"{C:attention}Odd{} card in the {C:attention}deck{}",
+		"gains a {C:red}Pernicious{} {C:dark_edition}enhancement",
+	  },
+    },
   },
-
   loc_vars = function(self, info_queue, card)
-    local jokercount = 0
-    if G.jokers and G.jokers.cards >= 1 then jokercount = #G.jokers.cards end 
-    return { vars = { jokercount } }
+    return { vars = { G.jokers and #G.jokers.cards or 0 } }
   end,
-
   can_use = function(self, card)
-    if not G.jokers or #G.jokers.cards >= 1 then return false end
-    return true
+    return G.hand and #G.hand.cards > 0
   end,
-
   use = function(self, card, area, copier)
-      -- make loop go through G.playing_cards then, 
-      -- check even/odd with ABN.is_even/odd make even base on increment, 
-      -- check increment compared to g.jokersq.cazrds 
-      -- make sure to grab rdm enh and edition from abn, check for like where "mod" is at
-      -- then move loc to actual loc file because jokerforge type loc pmo
-      -- remember to change atlas pos too
-  
-  end,
+    local even_cards = {}
+    for _, held_card in ipairs(G.hand.cards) do
+      if ABN.is_even(held_card) and not RETURNIA.is_pernicious(held_card) then
+        even_cards[#even_cards + 1] = held_card
+      end
+    end
 
+    local odd_cards = {}
+    for _, deck_card in ipairs(G.deck.cards) do
+      if ABN.is_odd(deck_card) and not RETURNIA.is_pernicious(deck_card) then
+        odd_cards[#odd_cards + 1] = deck_card
+      end
+    end
+    pseudoshuffle(odd_cards, pseudoseed('returnia_pattern_odd'))
+
+    local cutout_mod_id = 'cutout'
+    local cutout_enhancements = {}
+    for _, enhancement_center in ipairs(G.P_CENTER_POOLS.Enhanced) do
+      if enhancement_center.mod and enhancement_center.mod.id == cutout_mod_id then
+        cutout_enhancements[#cutout_enhancements + 1] = enhancement_center
+      end
+    end
+    local cutout_editions = {}
+    for _, edition_center in ipairs(G.P_CENTER_POOLS.Edition) do
+      if edition_center.mod and edition_center.mod.id == cutout_mod_id then
+        cutout_editions[#cutout_editions + 1] = edition_center
+      end
+    end
+
+    local pernicious_pool = {}
+    for _, enhancement_center in ipairs(G.P_CENTER_POOLS.Enhanced) do
+      if enhancement_center.returnia_pernicious then
+        pernicious_pool[#pernicious_pool + 1] = enhancement_center
+      end
+    end
+
+    G.E_MANAGER:add_event(Event({
+      trigger = 'after',
+      delay = 0.4,
+      func = function()
+        play_sound('tarot1')
+        card:juice_up(0.3, 0.5)
+        return true
+      end
+    }))
+
+    for _, held_card in ipairs(even_cards) do
+      G.E_MANAGER:add_event(Event({
+        trigger = 'after',
+        delay = 0.15,
+        func = function()
+          held_card:flip()
+          play_sound('card1', 0.9 + math.random() * 0.2, 0.6)
+          held_card:juice_up(0.3, 0.3)
+          return true
+        end
+      }))
+    end
+    delay(0.2)
+
+    for _, held_card in ipairs(even_cards) do
+      G.E_MANAGER:add_event(Event({
+        trigger = 'after',
+        delay = 0.1,
+        func = function()
+          if #cutout_enhancements > 0 then
+            local enhancement_center = pseudorandom_element(cutout_enhancements, pseudoseed('returnia_pattern_enhancement'))
+            held_card:set_ability(enhancement_center, nil, true)
+          end
+          if #cutout_editions > 0 then
+            local edition_center = pseudorandom_element(cutout_editions, pseudoseed('returnia_pattern_edition'))
+            held_card:set_edition(edition_center.key, true)
+          end
+          return true
+        end
+      }))
+    end
+
+    for _, held_card in ipairs(even_cards) do
+      G.E_MANAGER:add_event(Event({
+        trigger = 'after',
+        delay = 0.15,
+        func = function()
+          held_card:flip()
+          play_sound('tarot2', 0.9 + math.random() * 0.2, 0.6)
+          held_card:juice_up(0.3, 0.3)
+          return true
+        end
+      }))
+    end
+
+    G.E_MANAGER:add_event(Event({
+      trigger = 'after',
+      delay = 0.3,
+      func = function()
+        local joker_count = G.jokers and #G.jokers.cards or 0
+        if #pernicious_pool > 0 then
+          for index = 1, math.min(joker_count, #odd_cards) do
+            local pernicious_center = pseudorandom_element(pernicious_pool, pseudoseed('returnia_pattern_pernicious'))
+            odd_cards[index]:set_ability(pernicious_center, nil, true)
+          end
+        end
+        card:juice_up(0.3, 0.5)
+        return true
+      end
+    }))
+    delay(0.5)
+  end,
+  
   abn_artist_credits = {
-    artist = "Boko" -- ask later
+    artist = "Boko"
   },
 }
-]]
+
+SMODS.Consumable {
+  key = 'anti_pattern',
+  set = 'Spectral',
+  atlas = 'ReturniaSpectrals',
+  pos = { x = 1, y = 1 },
+  cost = 4,
+  config = {},
+  loc_txt = {
+    name = 'Anti-Pattern',
+    text = {
+	  {
+		"All {C:attention}Odd{} cards held in {C:attention}hand{} gain",
+		"random {C:attention}Abandonia Enhancements{} and {C:dark_edition}Editions",
+      },
+	  {
+		"For every owned Joker a random", 
+		"{C:attention}Even{} card in the {C:attention}deck{}",
+		"gains a {C:red}Pernicious{} {C:dark_edition}enhancement",
+	  },
+    },
+  },
+  loc_vars = function(self, info_queue, card)
+    return { vars = { G.jokers and #G.jokers.cards or 0 } }
+  end,
+  can_use = function(self, card)
+    return G.hand and #G.hand.cards > 0
+  end,
+  use = function(self, card, area, copier)
+    local odd_cards = {}
+    for _, held_card in ipairs(G.hand.cards) do
+      if ABN.is_odd(held_card) and not RETURNIA.is_pernicious(held_card) then
+        odd_cards[#odd_cards + 1] = held_card
+      end
+    end
+
+    local even_cards = {}
+    for _, deck_card in ipairs(G.deck.cards) do
+      if ABN.is_even(deck_card) and not RETURNIA.is_pernicious(deck_card) then
+        even_cards[#even_cards + 1] = deck_card
+      end
+    end
+    pseudoshuffle(even_cards, pseudoseed('returnia_anomaly_even'))
+
+    local abandonia_enhancements = {}
+    for _, enhancement_center in ipairs(G.P_CENTER_POOLS.Enhanced) do
+      if string.sub(enhancement_center.key, 1, 6) == 'm_abn_' then
+        abandonia_enhancements[#abandonia_enhancements + 1] = enhancement_center
+      end
+    end
+    local abandonia_editions = {}
+    for _, edition_center in ipairs(G.P_CENTER_POOLS.Edition) do
+      if string.sub(edition_center.key, 1, 6) == 'e_abn_' then
+        abandonia_editions[#abandonia_editions + 1] = edition_center
+      end
+    end
+
+    local pernicious_pool = {}
+    for _, enhancement_center in ipairs(G.P_CENTER_POOLS.Enhanced) do
+      if enhancement_center.returnia_pernicious then
+        pernicious_pool[#pernicious_pool + 1] = enhancement_center
+      end
+    end
+
+    G.E_MANAGER:add_event(Event({
+      trigger = 'after',
+      delay = 0.4,
+      func = function()
+        play_sound('tarot1')
+        card:juice_up(0.3, 0.5)
+        return true
+      end
+    }))
+
+    for _, held_card in ipairs(odd_cards) do
+      G.E_MANAGER:add_event(Event({
+        trigger = 'after',
+        delay = 0.15,
+        func = function()
+          held_card:flip()
+          play_sound('card1', 0.9 + math.random() * 0.2, 0.6)
+          held_card:juice_up(0.3, 0.3)
+          return true
+        end
+      }))
+    end
+    delay(0.2)
+
+    for _, held_card in ipairs(odd_cards) do
+      G.E_MANAGER:add_event(Event({
+        trigger = 'after',
+        delay = 0.1,
+        func = function()
+          if #abandonia_enhancements > 0 then
+            local enhancement_center = pseudorandom_element(abandonia_enhancements, pseudoseed('returnia_anomaly_enhancement'))
+            held_card:set_ability(enhancement_center, nil, true)
+          end
+          if #abandonia_editions > 0 then
+            local edition_center = pseudorandom_element(abandonia_editions, pseudoseed('returnia_anomaly_edition'))
+            held_card:set_edition(edition_center.key, true)
+          end
+          return true
+        end
+      }))
+    end
+
+    for _, held_card in ipairs(odd_cards) do
+      G.E_MANAGER:add_event(Event({
+        trigger = 'after',
+        delay = 0.15,
+        func = function()
+          held_card:flip()
+          play_sound('tarot2', 0.9 + math.random() * 0.2, 0.6)
+          held_card:juice_up(0.3, 0.3)
+          return true
+        end
+      }))
+    end
+
+    G.E_MANAGER:add_event(Event({
+      trigger = 'after',
+      delay = 0.3,
+      func = function()
+        local joker_count = G.jokers and #G.jokers.cards or 0
+        if #pernicious_pool > 0 then
+          for index = 1, math.min(joker_count, #even_cards) do
+            local pernicious_center = pseudorandom_element(pernicious_pool, pseudoseed('returnia_anomaly_pernicious'))
+            even_cards[index]:set_ability(pernicious_center, nil, true)
+          end
+        end
+        card:juice_up(0.3, 0.5)
+        return true
+      end
+    }))
+    delay(0.5)
+  end,
+  
+  abn_artist_credits = {
+    artist = "Boko"
+  },
+}
+
 -- Tarots
 
 SMODS.Atlas({
@@ -372,4 +609,3 @@ SMODS.Consumable {
     }))
   end,
 }
-
