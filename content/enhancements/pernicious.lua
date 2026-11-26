@@ -133,13 +133,13 @@ RETURNIA.Pernicious {
   key = 'fugitive',
   original = 'm_gold',
   atlas = 'ReturniaEnhancements',
-  pos = { x = 0, y = 5 },
+  pos = { x = 0, y = 4 },
   config = { extra = { dollars = 3, increase = 1 } },
   loc_txt = {
     name = 'Fugitive',
     text = {
       "{C:red}-$#1#{} when played",
-      "If {C:attention}discarded{}, this cost increases by {C:red}$#2#{}",
+      "If {C:attention}discarded{} this cost increases by {C:red}$#2#{}",
       "and card is {C:attention}shuffled{} back into the deck",
     },
   },
