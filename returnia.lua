@@ -53,3 +53,10 @@ local cards = NFS.getDirectoryItems(SMODS.current_mod.path .. subdir)
 for _, filename in pairs(cards) do
   assert(SMODS.load_file(subdir .. "/" .. filename))()
 end
+
+-- Enhancements
+local subdir = "content/enhancements"
+local cards = NFS.getDirectoryItems(SMODS.current_mod.path .. subdir)
+for _, filename in pairs(cards) do
+  assert(SMODS.load_file(subdir .. "/" .. filename))()
+end
